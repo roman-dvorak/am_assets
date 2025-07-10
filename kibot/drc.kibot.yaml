@@ -1,0 +1,13 @@
+kibot:
+  version: 1
+
+preflight:
+  filters:
+    - filter: 'Ignore warning'
+      error: WARNING
+      regexp: 'WARNING'
+
+  run_erc: false
+  run_drc: true
+  check_zone_fills: true
+  update_xml: false

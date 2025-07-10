@@ -1,0 +1,3 @@
+PyGithub
+PyYAML
+glob2

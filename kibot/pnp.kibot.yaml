@@ -1,0 +1,60 @@
+kibot:
+  version: 1
+
+preflight:
+  run_erc: false
+  run_drc: false
+  check_zone_fills: true
+  update_xml:
+    enabled: true
+    as_warnings: true
+
+outputs:
+
+  - name: 'PnP all'
+    comment: "Pick and place"
+    type: position
+    dir: PnP
+    options:
+      output: "%f_cpl_all_%i.%x"
+      format: CSV
+      units: millimeters
+      separate_files_for_front_and_back: false
+      only_smd: false
+      columns:
+        - id: Ref
+          name: Designator
+        - Val
+        - Package
+        - id: PosX
+          name: "Mid X"
+        - id: PosY
+          name: "Mid Y"
+        - id: Rot
+          name: Rotation
+        - id: Side
+          name: Layer
+
+  - name: 'PnP'
+    comment: "Pick and place"
+    type: position
+    dir: gerbers/PnP
+    options:
+      output: "%f_cpl_smd_%i.%x"
+      format: CSV
+      units: millimeters
+      separate_files_for_front_and_back: true
+      only_smd: true
+      columns:
+        - id: Ref
+          name: Designator
+        - Val
+        - Package
+        - id: PosX
+          name: "Mid X"
+        - id: PosY
+          name: "Mid Y"
+        - id: Rot
+          name: Rotation
+        - id: Side
+          name: Layer

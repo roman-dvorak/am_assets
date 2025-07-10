@@ -1,0 +1,5 @@
+[submodule "templates/PcbDraw-Lib"]
+	path = templates/PcbDraw-Lib
+	url = git@github.com:MLAB-project/PcbDraw-Lib.git
+	branch = master
+	shallow = true

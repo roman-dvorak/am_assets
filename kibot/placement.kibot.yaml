@@ -1,0 +1,98 @@
+kibot:
+  version: 1
+
+
+preflight:
+  run_erc: false
+  run_drc: false
+  check_zone_fills: true
+  update_xml:
+    enabled: true
+    as_warnings: true
+
+global:
+   kiauto_time_out_scale: 15
+
+outputs:
+  - name: 'pdf_default_B'
+    type: pdf_pcb_print
+    options:
+      mirror: true
+      scaling: 0
+    layers:
+      - B.Fab
+      - Edge.Cuts
+
+  - name: 'pdf_default_F'
+    type: pdf_pcb_print
+    options:
+      scaling: 0
+    layers:
+      - F.Fab
+      - Edge.Cuts
+
+  - name: 'SVG print'
+    type: pcb_print
+    options:
+      mirror: true
+      scaling: 0
+      plot_sheet_reference: false
+      format: 'SVG'
+      pages:
+        - layers:
+          - B.Fab
+          - Edge.Cuts
+          mirror: true
+        - layers:
+          - F.Fab
+          - Edge.Cuts
+          mirror: false
+
+  - name: 'PnP all'
+    comment: "Pick and place"
+    type: position
+    dir: PnP
+    options:
+      output: "%f_cpl_%i.%x"
+      format: CSV
+      units: millimeters
+      separate_files_for_front_and_back: false
+      only_smd: false
+      columns:
+        - id: Ref
+          name: Designator
+        - Val
+        - Package
+        - id: PosX
+          name: "Mid X"
+        - id: PosY
+          name: "Mid Y"
+        - id: Rot
+          name: Rotation
+        - id: Side
+          name: Layer
+
+
+  - name: 'PnP sides'
+    comment: "Pick and place"
+    type: position
+    dir: gerbers/PnP
+    options:
+      output: "%f_cpl_%i.%x"
+      format: CSV
+      units: millimeters
+      separate_files_for_front_and_back: true
+      only_smd: false
+      columns:
+        - id: Ref
+          name: Designator
+        - Val
+        - Package
+        - id: PosX
+          name: "Mid X"
+        - id: PosY
+          name: "Mid Y"
+        - id: Rot
+          name: Rotation
+        - id: Side
+          name: Layer
