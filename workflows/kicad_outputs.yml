@@ -15,9 +15,9 @@ on:
   workflow_dispatch:
   
 env:
-  schema: "hw/sch_pcb/AMASCHR02.kicad_sch"
-  board: "hw/sch_pcb/AMASCHR02.kicad_pcb"
-  project: AMASCHR02
+  schema: "hw/sch_pcb/${{ replace(github.event.repository.name, '-internal', '') }}.kicad_sch"
+  board: "hw/sch_pcb/${{ replace(github.event.repository.name, '-internal', '') }}.kicad_pcb"
+  project: ${{ replace(github.event.repository.name, '-internal', '') }}
   branch: ${{ github.head_ref || github.ref_name }}
   dir: "hw/out"
   kibot: "doc/assets/kibot"
