@@ -33,7 +33,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/erc.kibot.yaml
           schema: ${{ env.schema }}
@@ -51,7 +51,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/drc.kibot.yaml
           schema: ${{ env.schema }}
@@ -69,7 +69,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/schematics.kibot.yaml
           schema: ${{ env.schema }}
@@ -93,14 +93,14 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/placement.kibot.yaml
           schema: ${{ env.schema }}
           board: ${{ env.board }}
           dir: ${{ env.dir }}_docs
         
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/xml.kibot.yaml
           schema: ${{ env.schema }}
@@ -146,7 +146,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/report.kibot.yaml
           schema: ${{ env.schema }}
@@ -170,7 +170,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/ibom.kibot.yaml
           schema: ${{ env.schema }}
@@ -187,7 +187,7 @@ jobs:
           path: ${{ env.dir }}_ibom/
 
 
-  3d-models:
+  models-3d:
     name: "3D models (STEP, glTF, renders)"
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -198,7 +198,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
 
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/3d.kibot.yaml
           schema: ${{ env.schema }}
@@ -226,7 +226,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/gerbers.kibot.yaml
           schema: ${{ env.schema }}
@@ -255,7 +255,7 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
           
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/cad.kibot.yaml
           schema: ${{ env.schema }}
@@ -264,7 +264,7 @@ jobs:
           install3D: YES
           cache3D: YES
 
-      - uses: INTI-CMNB/KiBot@v2_k10
+      - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/render.kibot.yaml
           schema: ${{ env.schema }}
@@ -290,7 +290,7 @@ jobs:
   UPDATE_REPO:
     runs-on: ubuntu-latest
     name: Update repository
-    needs: [graphics, gerbers, schematics, placement, report, ibom, 3d-models]
+    needs: [graphics, gerbers, schematics, placement, report, ibom, models-3d]
     steps:
     - uses: actions/checkout@v4
       with:
