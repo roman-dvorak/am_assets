@@ -86,8 +86,8 @@ outputs:
       subtract_mask_from_silk: true
     layers:
       - copper
-      - F.SilkS
-      - B.SilkS
+      - F.Silkscreen
+      - B.Silkscreen
       - F.Mask
       - B.Mask
       - Edge.Cuts

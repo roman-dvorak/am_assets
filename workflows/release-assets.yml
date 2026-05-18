@@ -6,31 +6,44 @@ on:
   release:
     types: [edited, prereleased, released]
 
+env:
+  schema: "hw/sch_pcb/${{ github.event.repository.name }}.kicad_sch"
+  board: "hw/sch_pcb/${{ github.event.repository.name }}.kicad_pcb"
+  kibot: "doc/assets/kibot"
+  dir: "hw/out_release"
+
 jobs:
   upload-gerber-assets:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        token: ${{ secrets.pat }}
+
+    - name: Generate Gerbers with KiBot
+      uses: INTI-CMNB/KiBot@v2_k10
+      with:
+        config: ${{ env.kibot }}/gerbers.kibot.yaml
+        schema: ${{ env.schema }}
+        board: ${{ env.board }}
+        dir: ${{ env.dir }}
 
     - name: Set up variables
       run: |
         REPO_NAME=$(basename -s .git `git config --get remote.origin.url`)
         COMMIT_SHA=$(git rev-parse --short HEAD)
-        ZIP_NAME="${REPO_NAME}-${COMMIT_SHA}.gerber.zip"
+        TAG_NAME="${GITHUB_REF_NAME}"
+        ZIP_NAME="${REPO_NAME}-${TAG_NAME}-gerbers.zip"
         echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
     - name: Create ZIP archive of Gerber files
       run: |
-        zip -j ${{ env.ZIP_NAME }} hw/cam_profi/gbr/*
+        zip -j ${{ env.ZIP_NAME }} ${{ env.dir }}/gerbers/*
 
     - name: Upload ZIP as release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ${{ env.ZIP_NAME }}
-        asset_name: ${{ env.ZIP_NAME }}
-        asset_content_type: application/zip
+        files: ${{ env.ZIP_NAME }}

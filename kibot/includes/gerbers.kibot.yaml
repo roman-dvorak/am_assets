@@ -50,8 +50,8 @@ outputs:
       - 'copper'
       - 'F.Mask'
       - 'B.Mask'
-      - 'F.SilkS'
-      - 'B.SilkS'
+      - 'F.Silkscreen'
+      - 'B.Silkscreen'
       - 'F.Paste'
       - 'B.Paste'
 
