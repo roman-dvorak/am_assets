@@ -1,0 +1,78 @@
+kibot:
+  version: 1
+
+preflight:
+  run_erc: false
+  run_drc: false
+  check_zone_fills: true
+  update_xml:
+    enabled: true
+    as_warnings: true
+
+outputs:
+  - name: 'step'
+    comment: '3D model (STEP) for CAD import'
+    type: step
+    dir: '3d'
+    options:
+      metric_units: true
+      download: true
+      output: '%f.%x'
+
+  - name: 'glTF'
+    comment: '3D model (GLB/glTF) for web viewers - KiCad 10+'
+    type: step
+    dir: '3d'
+    options:
+      metric_units: true
+      download: true
+      output: '%f.glb'
+      format: glTF
+
+  - name: 'render_top'
+    comment: '3D render - top view'
+    type: render_3d
+    dir: '3d/renders'
+    options:
+      download: true
+      output: '%f-top.%x'
+      ray_tracing: true
+      view: top
+      width: 1920
+      height: 1080
+
+  - name: 'render_bottom'
+    comment: '3D render - bottom view'
+    type: render_3d
+    dir: '3d/renders'
+    options:
+      download: true
+      output: '%f-bottom.%x'
+      ray_tracing: true
+      view: bottom
+      width: 1920
+      height: 1080
+
+  - name: 'render_iso_top'
+    comment: '3D render - isometric from top-left'
+    type: render_3d
+    dir: '3d/renders'
+    options:
+      download: true
+      output: '%f-iso_top.%x'
+      ray_tracing: true
+      view: z
+      width: 1920
+      height: 1080
+
+  - name: 'render_iso_bottom'
+    comment: '3D render - isometric from bottom'
+    type: render_3d
+    dir: '3d/renders'
+    options:
+      download: true
+      output: '%f-iso_bottom.%x'
+      ray_tracing: true
+      view: Z
+      width: 1920
+      height: 1080

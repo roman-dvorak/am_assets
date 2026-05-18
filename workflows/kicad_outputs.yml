@@ -187,6 +187,33 @@ jobs:
           path: ${{ env.dir }}_ibom/
 
 
+  3d-models:
+    name: "3D models (STEP, glTF, renders)"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.pat }}
+          ref: ${{ github.head_ref }}
+
+      - uses: INTI-CMNB/KiBot@v2_k10
+        with:
+          config: ${{ env.kibot }}/3d.kibot.yaml
+          schema: ${{ env.schema }}
+          board: ${{ env.board }}
+          dir: ${{ env.dir }}_3d
+          install3D: YES
+          cache3D: YES
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ success() }}
+        with:
+          name: hw_3d
+          path: ${{ env.dir }}_3d/3d/**
+
+
 # fabrications
   gerbers:
     name: "Fabrication: Gerebrs, Drill and PnP"
@@ -234,13 +261,17 @@ jobs:
           schema: ${{ env.schema }}
           board: ${{ env.board }}
           dir: ${{ env.dir }}_cad
-          
+          install3D: YES
+          cache3D: YES
+
       - uses: INTI-CMNB/KiBot@v2_k10
         with:
           config: ${{ env.kibot }}/render.kibot.yaml
           schema: ${{ env.schema }}
           board: ${{ env.board }}
           dir: ${{ env.dir }}_img
+          install3D: YES
+          cache3D: YES
           verbose: 3
 
       - uses: actions/upload-artifact@v4
@@ -259,7 +290,7 @@ jobs:
   UPDATE_REPO:
     runs-on: ubuntu-latest
     name: Update repository
-    needs: [graphics, gerbers, schematics, placement, report, ibom]
+    needs: [graphics, gerbers, schematics, placement, report, ibom, 3d-models]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -291,6 +322,7 @@ jobs:
         mkdir hw/cam_profi/gbr || true
         mkdir hw/cam_profi/assembly || true
         mkdir hw/cam_profi/ibom || true
+        mkdir hw/cam_profi/3d || true
                 
         cp -r doc_img/* doc/gen/img || true
         cp -r doc_cad/cad/* doc/gen || true
@@ -302,6 +334,7 @@ jobs:
         cp -r doc_placement/* hw/cam_profi/assembly || true
         cp -r doc_report/* doc/gen || true
         cp -r doc_ibom/docs/* hw/cam_profi || true
+        cp -r hw_3d/* hw/cam_profi/3d || true
 
         mv hw/cam_profi/gbr/PnP/ hw/cam_profi/assembly || true
 
@@ -313,6 +346,7 @@ jobs:
         rm -r doc_xml || true
         rm -r doc_report || true
         rm -r doc_ibom || true
+        rm -r hw_3d || true
         
         git add . -f
         
