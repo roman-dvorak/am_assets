@@ -15,9 +15,6 @@ on:
   workflow_dispatch:
   
 env:
-  schema: "hw/sch_pcb/${{ replace(github.event.repository.name, '-internal', '') }}.kicad_sch"
-  board: "hw/sch_pcb/${{ replace(github.event.repository.name, '-internal', '') }}.kicad_pcb"
-  project: ${{ replace(github.event.repository.name, '-internal', '') }}
   branch: ${{ github.head_ref || github.ref_name }}
   dir: "hw/out"
   kibot: "doc/assets/kibot"
@@ -32,6 +29,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -50,6 +53,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -68,6 +77,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -92,6 +107,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -145,6 +166,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -169,6 +196,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -198,6 +231,12 @@ jobs:
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
 
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
+
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
           config: ${{ env.kibot }}/3d.kibot.yaml
@@ -225,6 +264,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -254,6 +299,12 @@ jobs:
           submodules: recursive
           token: ${{ secrets.pat }}
           ref: ${{ github.head_ref }}
+
+      - name: Project name
+        run: |
+          # repository name without the "-internal" suffix
+          p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+          { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
           
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -296,6 +347,12 @@ jobs:
       with:
         ref: ${{ github.head_ref }}
         token: ${{ secrets.pat }}
+
+    - name: Project name
+      run: |
+        # repository name without the "-internal" suffix
+        p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
+        { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
 
     - run: |
         git pull --force --rebase || true

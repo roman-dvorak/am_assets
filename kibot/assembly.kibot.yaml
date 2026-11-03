@@ -1,0 +1,58 @@
+kibot:
+  version: 1
+
+preflight:
+  run_erc: false
+  run_drc: false
+  check_zone_fills: true
+
+global:
+  kiauto_time_out_scale: 15
+
+outputs:
+  - name: 'ibom'
+    comment: "Interactive BOM"
+    type: ibom
+    dir: assembly
+    options:
+      output: '%f-ibom.%x'
+      extra_fields: 'UST_ID'
+      include_nets: true
+
+  - name: 'netlist'
+    comment: "KiCad netlist"
+    type: netlist
+    dir: assembly
+    options:
+      format: classic
+
+  - name: 'netlist_ipc'
+    comment: "IPC-D-356 netlist for the bare-board electrical test"
+    type: netlist
+    dir: assembly
+    options:
+      format: ipc
+
+  - name: 'position'
+    comment: "Pick and place, both sides in one file"
+    type: position
+    dir: assembly
+    options:
+      output: '%f-position.%x'
+      format: CSV
+      units: millimeters
+      separate_files_for_front_and_back: false
+      only_smd: false
+      columns:
+        - id: Ref
+          name: Designator
+        - Val
+        - Package
+        - id: PosX
+          name: "Mid X"
+        - id: PosY
+          name: "Mid Y"
+        - id: Rot
+          name: Rotation
+        - id: Side
+          name: Layer
