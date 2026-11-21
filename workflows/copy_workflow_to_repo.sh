@@ -10,8 +10,9 @@ if [ "$(find ../../../hw -name '*kicad_pro'  2>/dev/null)" ]
 then
 	echo "This is KICAD project"
 	cp kicad_outputs.yml ../../../.github/workflows/kicad_outputs.yml
+	cp kicad_pcb.yml ../../../.github/workflows/kicad_pcb.yml
 else
-   rm ../../../.github/workflows/kicad_outputs.yml 2>/dev/null || true
+   rm ../../../.github/workflows/kicad_outputs.yml ../../../.github/workflows/kicad_pcb.yml 2>/dev/null || true
    echo "Kicad not found"
 fi
 cp update_actions.yml ../../../.github/workflows/update_actions.yml
@@ -20,4 +21,8 @@ cp release-assets.yml ../../../.github/workflows/release_assets.yml
 
 
 cp gitattribudes ../../../.gitattributes
-cat gitignore ../../../.gitignore | sort | uniq > ../../../.gitignore
+# merge the template into the repository .gitignore (through a temporary file: redirecting straight
+# into .gitignore would truncate it before it is read and drop the repository's own rules)
+tmp=$(mktemp)
+cat gitignore ../../../.gitignore 2>/dev/null | sort | uniq > "$tmp"
+mv "$tmp" ../../../.gitignore

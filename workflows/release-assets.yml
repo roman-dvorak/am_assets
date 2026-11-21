@@ -6,7 +6,9 @@ name: Release Assets
 # The workflow builds the manufacturing data from the tagged commit and attaches to the release
 #   <revision>-<short sha>-gerbers.zip   Gerbers and drill files
 #   <revision>-<short sha>-assembly.zip  iBOM, KiCad and IPC-D-356 netlists, position CSV
-# each with a .sha256 checksum.
+# each with a .sha256 checksum. With more PCB designs (doc/assets/workflows/pcb_matrix.py) every board gets
+# its own pair, <revision> then stands for the board name with the project prefix replaced by the revision
+# (e.g. AMRAIN01-SENS on AMRAIN01A-release -> AMRAIN01A-SENS-<sha>-gerbers.zip).
 
 on:
   release:
@@ -26,9 +28,10 @@ env:
   TAG: ${{ github.event.release.tag_name || inputs.tag }}
 
 jobs:
-  upload-gerber-assets:
+  discover:
     runs-on: ubuntu-latest
-
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
     - name: Checkout the tagged commit
       uses: actions/checkout@v4
@@ -37,11 +40,31 @@ jobs:
         submodules: recursive
         token: ${{ secrets.pat }}
 
-    - name: Project name
+    - name: Take the release tooling (doc/assets) from the branch the workflow was run on
+      if: github.event_name == 'workflow_dispatch'
       run: |
-        # repository name without the "-internal" suffix
-        p="${GITHUB_REPOSITORY#*/}"; p="${p%-internal}"
-        { echo "project=$p"; echo "schema=hw/sch_pcb/$p.kicad_sch"; echo "board=hw/sch_pcb/$p.kicad_pcb"; } >> "$GITHUB_ENV"
+        git fetch --depth=1 origin ${{ github.sha }}
+        git checkout ${{ github.sha }} -- .gitmodules doc/assets
+        git submodule sync --recursive
+        git submodule update --init --recursive doc/assets
+
+    - id: set-matrix
+      run: python3 doc/assets/workflows/pcb_matrix.py --github --revision "${TAG%-release}"
+
+  upload-gerber-assets:
+    name: "Release ${{ matrix.name }}"
+    needs: [discover]
+    strategy:
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the tagged commit
+      uses: actions/checkout@v4
+      with:
+        ref: refs/tags/${{ env.TAG }}
+        submodules: recursive
+        token: ${{ secrets.pat }}
 
     - name: Take the release tooling (doc/assets) from the branch the workflow was run on
       if: github.event_name == 'workflow_dispatch'
@@ -55,21 +78,21 @@ jobs:
       uses: INTI-CMNB/KiBot@v2_dk10
       with:
         config: ${{ env.kibot }}/gerbers.kibot.yaml
-        schema: ${{ env.schema }}
-        board: ${{ env.board }}
-        dir: ${{ env.dir }}
+        schema: ${{ matrix.schema }}
+        board: ${{ matrix.board }}
+        dir: ${{ env.dir }}/${{ matrix.name }}
 
     - name: Generate iBOM, netlists and position file with KiBot
       uses: INTI-CMNB/KiBot@v2_dk10
       with:
         config: ${{ env.kibot }}/assembly.kibot.yaml
-        schema: ${{ env.schema }}
-        board: ${{ env.board }}
-        dir: ${{ env.dir }}
+        schema: ${{ matrix.schema }}
+        board: ${{ matrix.board }}
+        dir: ${{ env.dir }}/${{ matrix.name }}
 
     - name: Drop DNP parts from the position file
       run: |
-        sudo python3 - "${{ env.dir }}/assembly" <<'EOF'
+        sudo python3 - "${{ env.dir }}/${{ matrix.name }}/assembly" <<'EOF'
         import csv, glob, re, sys
         d = sys.argv[1]
         net = open(glob.glob(d + '/*netlist.net')[0]).read()
@@ -89,20 +112,21 @@ jobs:
     - name: Package manufacturing data
       run: |
         VERSION="${TAG%-release}"
+        OUT="${{ matrix.out }}"   # <revision> for a single board, e.g. AMRAIN01A-SENS for more boards
         SHA_SHORT=$(git rev-parse --short HEAD)
         SHA_FULL=$(git rev-parse HEAD)
 
         # package <kind> <source dir>: <version>-<sha>-<kind>.zip with files renamed to the version
         package() {
-          local pkg="${VERSION}-${SHA_SHORT}-$1"
+          local pkg="${OUT}-${SHA_SHORT}-$1"
           mkdir -p "pkg/${pkg}"
           for f in "$2"/*; do
             [ -f "$f" ] || continue
             name=$(basename "$f")
-            cp "$f" "pkg/${pkg}/${name/#${{ env.project }}/${VERSION}}"
+            cp "$f" "pkg/${pkg}/${name/#${{ matrix.name }}/${OUT}}"
           done
           printf '%s\n' \
-            "Project:  ${{ env.project }}" \
+            "Project:  ${{ matrix.name }}" \
             "Version:  ${VERSION}" \
             "Tag:      ${TAG}" \
             "Commit:   ${SHA_FULL}" \
@@ -115,8 +139,8 @@ jobs:
           echo "${pkg}.zip ${pkg}.zip.sha256" >> assets.txt
         }
 
-        package gerbers  "${{ env.dir }}/gerbers"
-        package assembly "${{ env.dir }}/assembly"
+        package gerbers  "${{ env.dir }}/${{ matrix.name }}/gerbers"
+        package assembly "${{ env.dir }}/${{ matrix.name }}/assembly"
 
     - name: Upload to the release
       env:
