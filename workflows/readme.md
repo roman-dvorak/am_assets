@@ -5,7 +5,7 @@
    (ERC, DRC, schematics, placement, report, iBOM, 3D, gerbers, CAD and render).
    - push to a branch: the outputs are committed to the repository (`doc/gen/`, `hw/cam_profi/`);
    - published release (tag `<revision>-release`) or manual run with a tag: the tagged commit is built and
-     per PCB `<rev>-<sha>-gerbers.zip` (manufacturing), `<rev>-<sha>-assembly.zip` (iBOM, netlists, positions)
+     per PCB `<rev>-<sha>-gerbers.zip` (manufacturing), `<rev>-<sha>-assembly.zip` (iBOM, netlists, positions, JLCPCB BOM + CPL)
      and `<rev>-<sha>-intranet.zip` (metadata.json, netlists, iBOM, BOM CSV, schematic PDF, PNG previews)
      are attached to the release.
  - `kicad_pcb.yml` - reusable workflow (`workflow_call`) with the outputs of one PCB, called by `kicad_outputs.yml`.

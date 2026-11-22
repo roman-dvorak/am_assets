@@ -11,7 +11,8 @@ name: Kicad - production files generator
 # Published release (or manual run with a release tag): the tagged commit is built and the packages are
 # attached to the release instead (RELEASE), per PCB:
 #   <revision>-<short sha>-gerbers.zip   Gerbers and drill files for the manufacturer
-#   <revision>-<short sha>-assembly.zip  iBOM, KiCad and IPC-D-356 netlists, position CSV
+#   <revision>-<short sha>-assembly.zip  iBOM, KiCad and IPC-D-356 netlists, position CSV,
+#                                        JLCPCB assembly BOM (-jlcpcb-bom.csv) and CPL (-jlcpcb-cpl.csv)
 #   <revision>-<short sha>-intranet.zip  metadata.json (release_metadata.py), netlists, iBOM HTML, BOM CSV,
 #                                        schematic PDF, PNG previews (2D pcbdraw and 3D renders)
 #   each with a .sha256 checksum.
@@ -202,10 +203,21 @@ jobs:
             if ref and re.search(r'\(property\s*\(name "dnp"\)', comp):
                 dnp.add(ref.group(1))
         print('DNP:', ' '.join(sorted(dnp)) or '-')
-        for f in glob.glob(d + '/*position.csv'):
+        # position files (incl. JLCPCB CPL): one row per designator
+        for f in glob.glob(d + '/*position.csv') + glob.glob(d + '/*cpl.csv'):
             rows = list(csv.reader(open(f)))
             kept = [rows[0]] + [r for r in rows[1:] if r[0] not in dnp]
             csv.writer(open(f, 'w', newline='')).writerows(kept)
+            print(f, len(rows) - len(kept), 'rows removed')
+        # JLCPCB BOM: designators in the 2nd column separated by ","
+        for f in glob.glob(d + '/*jlcpcb-bom.csv'):
+            rows = list(csv.reader(open(f)))
+            kept = [rows[0]]
+            for r in rows[1:]:
+                refs = [x.strip() for x in r[1].split(',') if x.strip() and x.strip() not in dnp]
+                if refs:
+                    kept.append([r[0], ','.join(refs)] + r[2:])
+            csv.writer(open(f, 'w', newline=''), quoting=csv.QUOTE_ALL).writerows(kept)
             print(f, len(rows) - len(kept), 'rows removed')
         EOF
 
