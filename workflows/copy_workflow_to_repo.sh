@@ -16,8 +16,8 @@ else
    echo "Kicad not found"
 fi
 cp update_actions.yml ../../../.github/workflows/update_actions.yml
-cp metadata_updater.yml ../../../.github/workflows/metadata_updater.yml
-cp release-assets.yml ../../../.github/workflows/release_assets.yml
+# the release packages are built by kicad_outputs.yml (release event), the metadata updater is not used any more
+rm -f ../../../.github/workflows/release_assets.yml ../../../.github/workflows/metadata_updater.yml
 
 
 cp gitattribudes ../../../.gitattributes

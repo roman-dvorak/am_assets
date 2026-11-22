@@ -4,14 +4,28 @@ name: Kicad - production files generator
 # the reusable workflow kicad_pcb.yml with the individual output jobs (ERC, DRC, schematics, gerbers, ...).
 # PCB list: hw/sch_pcb/PCB_matrix.yaml, or hw/sch_pcb/<project>.kicad_pcb (single board, legacy layout),
 # or every hw/sch_pcb/<x>/<x>.kicad_pcb.
-# Outputs: single board -> doc/gen/, hw/cam_profi/ (as before); more boards -> doc/gen/<name>/, hw/cam_profi/<name>/.
+#
+# Push to a branch: the outputs are committed to the repository (UPDATE_REPO):
+#   single board -> doc/gen/, hw/cam_profi/; more boards -> doc/gen/<name>/, hw/cam_profi/<name>/.
+#
+# Published release (or manual run with a release tag): the tagged commit is built and the packages are
+# attached to the release instead (RELEASE), per PCB:
+#   <revision>-<short sha>-gerbers.zip   Gerbers and drill files for the manufacturer
+#   <revision>-<short sha>-assembly.zip  iBOM, KiCad and IPC-D-356 netlists, position CSV
+#   <revision>-<short sha>-intranet.zip  metadata.json (release_metadata.py), netlists, iBOM HTML, BOM CSV,
+#                                        schematic PDF, PNG previews (2D pcbdraw and 3D renders)
+#   each with a .sha256 checksum.
+# Release convention: one release per hardware revision, tag <revision>-release (e.g. AMHATLED01D-release),
+# title <revision>. With more boards <revision> stands for the board name with the project prefix replaced
+# by the revision (AMRAIN01-SENS on AMRAIN01A-release -> AMRAIN01A-SENS-<sha>-gerbers.zip).
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.tag }}
   cancel-in-progress: true
 
 on:
   push:
+    branches: ['**']    # not tags: a release is built by the release event
     paths:
       - '**.kicad_pcb'
       - '**.kicad_sch'
@@ -19,7 +33,19 @@ on:
       - '**.yml'
       - '**.yaml'
       - 'doc/assets'
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach the packages to (e.g. AMHATLED01D-release); empty = build the branch"
+        required: false
+        default: ""
+
+env:
+  kibot: "doc/assets/kibot"
+  dir: "hw/out_release"
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
 
 jobs:
   discover:
@@ -27,15 +53,22 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      tag: ${{ steps.set-matrix.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ env.TAG && format('refs/tags/{0}', env.TAG) || github.head_ref }}
 
       - id: set-matrix
-        run: python3 doc/assets/workflows/pcb_matrix.py --github
+        run: |
+          if [ -n "$TAG" ]; then
+            python3 doc/assets/workflows/pcb_matrix.py --github --revision "${TAG%-release}"
+          else
+            python3 doc/assets/workflows/pcb_matrix.py --github
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
 
   pcb:
@@ -47,6 +80,7 @@ jobs:
     uses: ./.github/workflows/kicad_pcb.yml
     with:
       pcb: ${{ toJson(matrix) }}
+      ref: ${{ needs.discover.outputs.tag && format('refs/tags/{0}', needs.discover.outputs.tag) || '' }}
     secrets: inherit
 
 
@@ -54,6 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Update repository
     needs: [discover, pcb]
+    if: ${{ needs.discover.outputs.tag == '' }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -105,3 +140,147 @@ jobs:
       with:
         commit_message: Update actions products
         add_options: '-A -f'
+
+
+  RELEASE:
+    name: "Release ${{ matrix.name }}"
+    needs: [discover, pcb]
+    if: ${{ !cancelled() && needs.discover.result == 'success' && needs.discover.outputs.tag != '' }}
+    permissions:
+      contents: write
+    strategy:
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the tagged commit
+      uses: actions/checkout@v4
+      with:
+        ref: refs/tags/${{ env.TAG }}
+        submodules: recursive
+        token: ${{ secrets.pat }}
+
+    - name: Take the release tooling (doc/assets) from the branch the workflow was run on
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        git fetch --depth=1 origin ${{ github.sha }}
+        git checkout ${{ github.sha }} -- .gitmodules doc/assets
+        git submodule sync --recursive
+        git submodule update --init --recursive doc/assets
+
+    - name: Download the build outputs of this board
+      uses: actions/download-artifact@v4
+      with:
+        pattern: "*_${{ matrix.name }}"
+        path: build
+
+    - name: Check the build outputs
+      run: |
+        ls -R build | head -100
+        for a in hw_cam_profi doc_img hw_3d doc_xml doc_sch doc_placement; do
+          [ -d "build/${a}_${{ matrix.name }}" ] || echo "::warning::build output ${a}_${{ matrix.name }} is missing"
+        done
+        ls build/hw_cam_profi_${{ matrix.name }}/*.gbr >/dev/null || { echo "::error::no gerbers in the build"; exit 1; }
+
+    - name: Generate iBOM, netlists and position file with KiBot
+      uses: INTI-CMNB/KiBot@v2_dk10
+      with:
+        config: ${{ env.kibot }}/assembly.kibot.yaml
+        schema: ${{ matrix.schema }}
+        board: ${{ matrix.board }}
+        dir: ${{ env.dir }}/${{ matrix.name }}
+
+    - name: Drop DNP parts from the position file
+      run: |
+        sudo python3 - "${{ env.dir }}/${{ matrix.name }}/assembly" <<'EOF'
+        import csv, glob, re, sys
+        d = sys.argv[1]
+        net = open(glob.glob(d + '/*netlist.net')[0]).read()
+        dnp = set()
+        for comp in re.split(r'\(comp\b', net)[1:]:
+            ref = re.search(r'\(ref "([^"]+)"\)', comp)
+            if ref and re.search(r'\(property\s*\(name "dnp"\)', comp):
+                dnp.add(ref.group(1))
+        print('DNP:', ' '.join(sorted(dnp)) or '-')
+        for f in glob.glob(d + '/*position.csv'):
+            rows = list(csv.reader(open(f)))
+            kept = [rows[0]] + [r for r in rows[1:] if r[0] not in dnp]
+            csv.writer(open(f, 'w', newline='')).writerows(kept)
+            print(f, len(rows) - len(kept), 'rows removed')
+        EOF
+
+    - name: Package manufacturing data
+      run: |
+        VERSION="${TAG%-release}"
+        OUT="${{ matrix.out }}"   # <revision> for a single board, e.g. AMRAIN01A-SENS for more boards
+        N="${{ matrix.name }}"
+        SHA_SHORT=$(git rev-parse --short HEAD)
+        SHA_FULL=$(git rev-parse HEAD)
+
+        # package <kind> <source dir>: <version>-<sha>-<kind>.zip with files renamed to the version
+        package() {
+          local pkg="${OUT}-${SHA_SHORT}-$1"
+          mkdir -p "pkg/${pkg}"
+          for f in "$2"/*; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f")
+            [[ "$name" == "${OUT}"* ]] || name="${name/#${N}/${OUT}}"   # the build already renamed some files
+            cp "$f" "pkg/${pkg}/${name}"
+          done
+          printf '%s\n' \
+            "Project:  ${N}" \
+            "Version:  ${VERSION}" \
+            "Tag:      ${TAG}" \
+            "Commit:   ${SHA_FULL}" \
+            "Built:    $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > "pkg/${pkg}/BUILD_INFO.txt"
+          (cd pkg && zip -r "../${pkg}.zip" "${pkg}")
+          sha256sum "${pkg}.zip" > "${pkg}.zip.sha256"
+          unzip -l "${pkg}.zip"
+          echo "${pkg}.zip ${pkg}.zip.sha256" >> assets.txt
+        }
+
+        package gerbers  "build/hw_cam_profi_${N}"
+        package assembly "${{ env.dir }}/${N}/assembly"
+
+        # intranet package: netlists, iBOM, BOM, schematic, PNG previews and metadata.json
+        INTRANET="${OUT}-${SHA_SHORT}-intranet"
+        D="pkg/${INTRANET}"
+        A="${{ env.dir }}/${N}/assembly"
+        B="build"
+        mkdir -p "$D/netlist" "$D/bom" "$D/previews/2d" "$D/previews/3d"
+        # put <destination dir> <files...>: copy, file names renamed from the project name to the output name
+        put() {
+          local dst="$1"; shift
+          for f in "$@"; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f")
+            [[ "$name" == "${OUT}"* ]] || name="${name/#${N}/${OUT}}"
+            cp "$f" "${dst}/${name}"
+          done
+        }
+        put "$D/netlist"     $A/*netlist* $A/*.d356
+        put "$D"             $A/*-ibom.html
+        put "$D/bom"         $(find "$B/doc_xml_$N" "$B/doc_placement_$N" -name '*bom*.csv' 2>/dev/null)
+        put "$D"             $(find "$B/doc_sch_$N" -name '*.pdf' 2>/dev/null)
+        put "$D/previews/2d" $(find "$B/doc_img_$N" -maxdepth 1 -name '*.png' 2>/dev/null)
+        put "$D/previews/3d" $(find "$B/hw_3d_$N" -path '*renders*' -name '*.png' 2>/dev/null)
+        find "$D" -type d -empty -delete
+        NETLIST=$(ls $A/*netlist.net | head -1)
+        python3 doc/assets/workflows/release_metadata.py \
+          --name "${N}" --revision "${VERSION}" --out-name "${OUT}" --tag "${TAG}" \
+          --board "${{ matrix.board }}" --schema "${{ matrix.schema }}" --netlist "${NETLIST}" \
+          --package "$D" \
+          --asset "${OUT}-${SHA_SHORT}-gerbers.zip" --asset "${OUT}-${SHA_SHORT}-assembly.zip" \
+          --asset "${INTRANET}.zip" \
+          -o "$D/metadata.json"
+        (cd pkg && zip -r "../${INTRANET}.zip" "${INTRANET}")
+        sha256sum "${INTRANET}.zip" > "${INTRANET}.zip.sha256"
+        unzip -l "${INTRANET}.zip"
+        echo "${INTRANET}.zip ${INTRANET}.zip.sha256" >> assets.txt
+
+    - name: Upload to the release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh release upload "$TAG" $(cat assets.txt) --clobber --repo "${{ github.repository }}"

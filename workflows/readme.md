@@ -3,13 +3,16 @@
  - `kicad_outputs.yml` - KiCAD manufacturing and documentation outputs automation. Matrix over the PCB designs
    of the repository; every PCB runs the reusable workflow `kicad_pcb.yml` with the individual output jobs
    (ERC, DRC, schematics, placement, report, iBOM, 3D, gerbers, CAD and render).
+   - push to a branch: the outputs are committed to the repository (`doc/gen/`, `hw/cam_profi/`);
+   - published release (tag `<revision>-release`) or manual run with a tag: the tagged commit is built and
+     per PCB `<rev>-<sha>-gerbers.zip` (manufacturing), `<rev>-<sha>-assembly.zip` (iBOM, netlists, positions)
+     and `<rev>-<sha>-intranet.zip` (metadata.json, netlists, iBOM, BOM CSV, schematic PDF, PNG previews)
+     are attached to the release.
  - `kicad_pcb.yml` - reusable workflow (`workflow_call`) with the outputs of one PCB, called by `kicad_outputs.yml`.
- - `release-assets.yml` - on a published release runs the full build of the tagged commit (`kicad_pcb.yml`)
-   and attaches per PCB `<rev>-<sha>-gerbers.zip` (manufacturing), `<rev>-<sha>-assembly.zip` (iBOM, netlists,
-   positions) and `<rev>-<sha>-intranet.zip` (metadata.json, netlists, iBOM, BOM CSV, schematic PDF, PNG previews).
  - `release_metadata.py` - writes metadata.json of the intranet package (board size, layers, title block,
    component list from the netlist, file list with SHA-256, commit and release info).
  - `pcb_matrix.py` - finds the PCB designs and prints the matrix (`python3 doc/assets/workflows/pcb_matrix.py`).
+ - `update_actions.yml` - daily update of the assets submodule and of the workflow files.
 
 ### More PCB designs in one repository
 
