@@ -12,6 +12,11 @@ on:
         description: "JSON matrix entry of the PCB"
         required: true
         type: string
+      ref:
+        description: "Git ref to build (e.g. refs/tags/<tag> for a release), default = the triggering ref"
+        required: false
+        type: string
+        default: ""
 
 env:
   dir: "hw/out"
@@ -30,7 +35,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -48,7 +53,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -66,7 +71,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -90,7 +95,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -135,7 +140,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -159,7 +164,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -187,7 +192,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:
@@ -214,7 +219,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - name: "Prepare gerbers config (extra layers)"
         id: gerber_config
@@ -265,7 +270,7 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.pat }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.ref || github.head_ref }}
 
       - uses: INTI-CMNB/KiBot@v2_dk10
         with:

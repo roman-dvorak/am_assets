@@ -3,12 +3,16 @@ name: Release Assets
 # Release convention: one release per hardware revision.
 #   tag:   <revision branch>-release   (e.g. AMHATLED01D-release)
 #   title: <revision branch>           (e.g. AMHATLED01D)
-# The workflow builds the manufacturing data from the tagged commit and attaches to the release
-#   <revision>-<short sha>-gerbers.zip   Gerbers and drill files
+# A published release runs the full KiCad build of the tagged commit (the same reusable workflow kicad_pcb.yml
+# as on push: ERC, DRC, schematics, iBOM, gerbers, renders, 3D, ...) and then attaches to the release
+#   <revision>-<short sha>-gerbers.zip   Gerbers and drill files for the manufacturer (from the build)
 #   <revision>-<short sha>-assembly.zip  iBOM, KiCad and IPC-D-356 netlists, position CSV
+#   <revision>-<short sha>-intranet.zip  metadata.json, netlists, iBOM HTML, BOM CSV, schematic PDF and PNG
+#                                        previews (2D pcbdraw and 3D renders) for the intranet
 # each with a .sha256 checksum. With more PCB designs (doc/assets/workflows/pcb_matrix.py) every board gets
-# its own pair, <revision> then stands for the board name with the project prefix replaced by the revision
+# its own set, <revision> then stands for the board name with the project prefix replaced by the revision
 # (e.g. AMRAIN01-SENS on AMRAIN01A-release -> AMRAIN01A-SENS-<sha>-gerbers.zip).
+# metadata.json is written by doc/assets/workflows/release_metadata.py (schema_version 1).
 
 on:
   release:
@@ -51,9 +55,22 @@ jobs:
     - id: set-matrix
       run: python3 doc/assets/workflows/pcb_matrix.py --github --revision "${TAG%-release}"
 
+  build:
+    name: "Build ${{ matrix.name }}"
+    needs: [discover]
+    strategy:
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      fail-fast: false
+    uses: ./.github/workflows/kicad_pcb.yml
+    with:
+      pcb: ${{ toJson(matrix) }}
+      ref: refs/tags/${{ github.event.release.tag_name || inputs.tag }}
+    secrets: inherit
+
   upload-gerber-assets:
     name: "Release ${{ matrix.name }}"
-    needs: [discover]
+    needs: [discover, build]
+    if: ${{ !cancelled() && needs.discover.result == 'success' }}
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
@@ -74,13 +91,19 @@ jobs:
         git submodule sync --recursive
         git submodule update --init --recursive doc/assets
 
-    - name: Generate Gerbers and drill files with KiBot
-      uses: INTI-CMNB/KiBot@v2_dk10
+    - name: Download the build outputs of this board
+      uses: actions/download-artifact@v4
       with:
-        config: ${{ env.kibot }}/gerbers.kibot.yaml
-        schema: ${{ matrix.schema }}
-        board: ${{ matrix.board }}
-        dir: ${{ env.dir }}/${{ matrix.name }}
+        pattern: "*_${{ matrix.name }}"
+        path: build
+
+    - name: Check the build outputs
+      run: |
+        ls -R build | head -100
+        for a in hw_cam_profi doc_img hw_3d doc_xml doc_sch; do
+          [ -d "build/${a}_${{ matrix.name }}" ] || echo "::warning::build output ${a}_${{ matrix.name }} is missing"
+        done
+        ls build/hw_cam_profi_${{ matrix.name }}/*.gbr >/dev/null || { echo "::error::no gerbers in the build"; exit 1; }
 
     - name: Generate iBOM, netlists and position file with KiBot
       uses: INTI-CMNB/KiBot@v2_dk10
@@ -139,8 +162,43 @@ jobs:
           echo "${pkg}.zip ${pkg}.zip.sha256" >> assets.txt
         }
 
-        package gerbers  "${{ env.dir }}/${{ matrix.name }}/gerbers"
+        package gerbers  "build/hw_cam_profi_${{ matrix.name }}"
         package assembly "${{ env.dir }}/${{ matrix.name }}/assembly"
+
+        # intranet package: netlists, iBOM, BOM, schematic, PNG previews and metadata.json
+        INTRANET="${OUT}-${SHA_SHORT}-intranet"
+        D="pkg/${INTRANET}"
+        A="${{ env.dir }}/${{ matrix.name }}/assembly"
+        mkdir -p "$D/netlist" "$D/bom" "$D/previews/2d" "$D/previews/3d"
+        # put <destination dir> <files...>: copy, file names renamed from the project name to the output name
+        put() {
+          local dst="$1"; shift
+          for f in "$@"; do
+            [ -f "$f" ] || continue
+            name=$(basename "$f")
+            cp "$f" "${dst}/${name/#${{ matrix.name }}/${OUT}}"
+          done
+        }
+        B="build"; N="${{ matrix.name }}"
+        put "$D/netlist"     $A/*netlist* $A/*.d356
+        put "$D"             $A/*-ibom.html
+        put "$D/bom"         $(find "$B/doc_xml_$N" "$B/doc_placement_$N" -name '*bom*.csv' 2>/dev/null)
+        put "$D"             $(find "$B/doc_sch_$N" -name '*.pdf' 2>/dev/null)
+        put "$D/previews/2d" $(find "$B/doc_img_$N" -maxdepth 1 -name '*.png' 2>/dev/null)
+        put "$D/previews/3d" $(find "$B/hw_3d_$N" -path '*renders*' -name '*.png' 2>/dev/null)
+        find "$D" -type d -empty -delete
+        NETLIST=$(ls $A/*netlist.net | head -1)
+        python3 doc/assets/workflows/release_metadata.py \
+          --name "${{ matrix.name }}" --revision "${VERSION}" --out-name "${OUT}" --tag "${TAG}" \
+          --board "${{ matrix.board }}" --schema "${{ matrix.schema }}" --netlist "${NETLIST}" \
+          --package "$D" \
+          --asset "${OUT}-${SHA_SHORT}-gerbers.zip" --asset "${OUT}-${SHA_SHORT}-assembly.zip" \
+          --asset "${INTRANET}.zip" \
+          -o "$D/metadata.json"
+        (cd pkg && zip -r "../${INTRANET}.zip" "${INTRANET}")
+        sha256sum "${INTRANET}.zip" > "${INTRANET}.zip.sha256"
+        unzip -l "${INTRANET}.zip"
+        echo "${INTRANET}.zip ${INTRANET}.zip.sha256" >> assets.txt
 
     - name: Upload to the release
       env:
