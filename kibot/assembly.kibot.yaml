@@ -130,6 +130,8 @@ outputs:
       format: CSV
       exclude_filter: jlcpcb_only_lcsc
       ref_separator: ','
+      # one row per LCSC part: parts with the same value and footprint but different LCSC codes stay apart
+      group_fields: ['LCSC', 'Value', 'Footprint']
       columns:
         - field: Value
           name: Comment
